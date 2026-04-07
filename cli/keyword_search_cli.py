@@ -1,6 +1,6 @@
 import argparse
-from query_process import *
-from inverted_index import InvertedIndex
+from key_word_search import *
+from search_movies import *
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")
@@ -9,7 +9,7 @@ def main() -> None:
     search_parser = subparsers.add_parser("search", help="Search movies using BM25")
     search_parser.add_argument("query", type=str, help="Search query")
 
-    build_parser = subparsers.add_parser("build")
+    subparsers.add_parser("build")
 
     args = parser.parse_args()
 
@@ -23,8 +23,6 @@ def main() -> None:
             index = InvertedIndex()
             index.build()
             index.save()
-            test_doc = index.index["merida"]
-            print(f"First document for token 'merida' = {list(test_doc)[0]}")
         case _:
             parser.print_help()
 
