@@ -3,6 +3,7 @@ from nltk.stem import PorterStemmer
 import os
 import pickle
 from collections import Counter, defaultdict
+import math
 
 
 from search_utils import (
@@ -75,6 +76,18 @@ class InvertedIndex:
 
         processed_term = tokenized_term[0]
         return self.term_frequencies[doc_id][processed_term]
+
+    def get_idf(self, term):
+        tokenized_term = preprocess_text(term)
+        if len(tokenized_term) > 1:
+            raise Exception("Error: term is greater than one word")
+        token = tokenized_term[0]
+        doc_count = len(self.docmap)
+        term_doc_count = len(self.index[token])
+        return math.log((doc_count + 1) / (term_doc_count + 1))
+
+    def get_tf_idf(self, doc_id, term):
+        return self.get_tf(doc_id, term) * self.get_idf(term)
 
 
 def preprocess_text(text: str) -> str:
