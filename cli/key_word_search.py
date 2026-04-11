@@ -2,26 +2,30 @@ import string
 from nltk.stem import PorterStemmer
 import os
 import pickle
+from collections import Counter, defaultdict
+
 
 from search_utils import (
     CACHE_PATH,
     INDEX_PATH,
     DOCMAP_PATH,
+    TERM_FREQ_PATH,
     load_movies,
     load_stopwords
     )
 
 class InvertedIndex:
-    def __init__(self, index = {}, docmap = {}):
-        self.index = index
-        self.docmap = docmap
+    def __init__(self):
+        self.index = defaultdict(set)
+        self.docmap = {}
+        self.term_frequencies = defaultdict(Counter)
 
     def __add_document(self, doc_id, text):
         tokenized_text = preprocess_text(text)
+        self.term_frequencies[doc_id] = Counter()
         for token in tokenized_text:
-            if token not in self.index:
-                self.index[token] = set()
             self.index[token].add(doc_id)
+        self.term_frequencies[doc_id].update(tokenized_text)
 
     def get_documents(self, term):
         processed_term = term.lower()
@@ -37,11 +41,13 @@ class InvertedIndex:
     def save(self):
         os.makedirs(CACHE_PATH, exist_ok=True)
         with open(INDEX_PATH, 'wb') as index_file:
-
             pickle.dump(self.index, index_file)
 
         with open(DOCMAP_PATH, 'wb') as docmap_file:
             pickle.dump(self.docmap, docmap_file)
+
+        with open(TERM_FREQ_PATH, 'wb') as term_freq_file:
+            pickle.dump(self.term_frequencies, term_freq_file)
 
     def load(self):
         try:
@@ -55,6 +61,20 @@ class InvertedIndex:
                 self.docmap = pickle.load(docmap_file)
         except FileNotFoundError:
             print("Error: docmap file not found")
+
+        try:
+            with open(TERM_FREQ_PATH, "rb") as term_frq_file:
+                self.term_frequencies = pickle.load(term_frq_file)
+        except FileNotFoundError:
+            print("Error: term frequency file not found")
+
+    def get_tf(self, doc_id, term):
+        tokenized_term = preprocess_text(term)
+        if len(tokenized_term) > 1:
+            raise Exception("Error: term is greater than one word")
+
+        processed_term = tokenized_term[0]
+        return self.term_frequencies[doc_id][processed_term]
 
 
 def preprocess_text(text: str) -> str:

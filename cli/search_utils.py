@@ -8,6 +8,7 @@ SEARCH_LIMIT = 5
 CACHE_PATH = os.path.join(ROOT_PATH, "cache")
 INDEX_PATH = os.path.join(CACHE_PATH, "index.pkl")
 DOCMAP_PATH = os.path.join(CACHE_PATH, "docmap.pkl")
+TERM_FREQ_PATH = os.path.join(CACHE_PATH, "term_frequencies.pkl")
 STOPWORDS_PATH = os.path.join(ROOT_PATH, "data", "stopwords.txt")
 
 def load_movies():
