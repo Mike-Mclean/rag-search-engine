@@ -12,7 +12,8 @@ from search_utils import (
     DOCMAP_PATH,
     TERM_FREQ_PATH,
     load_movies,
-    load_stopwords
+    load_stopwords,
+    BM25_K1
     )
 
 class InvertedIndex:
@@ -69,7 +70,7 @@ class InvertedIndex:
         except FileNotFoundError:
             print("Error: term frequency file not found")
 
-    def get_tf(self, doc_id, term):
+    def get_tf(self, doc_id: int, term: str) -> int:
         tokenized_term = preprocess_text(term)
         if len(tokenized_term) > 1:
             raise Exception("Error: term is greater than one word")
@@ -77,10 +78,11 @@ class InvertedIndex:
         processed_term = tokenized_term[0]
         return self.term_frequencies[doc_id][processed_term]
 
-    def get_idf(self, term):
+    def get_idf(self, term: str) -> float:
         tokenized_term = preprocess_text(term)
         if len(tokenized_term) > 1:
             raise Exception("Error: term is greater than one word")
+
         token = tokenized_term[0]
         doc_count = len(self.docmap)
         term_doc_count = len(self.index[token])
@@ -89,6 +91,30 @@ class InvertedIndex:
     def get_tf_idf(self, doc_id, term):
         return self.get_tf(doc_id, term) * self.get_idf(term)
 
+    def get_bm25_idf(self, term: str) -> float:
+        tokenized_term = preprocess_text(term)
+        if len(tokenized_term) > 1:
+            raise Exception("Error: term is greater than one word")
+
+        token = tokenized_term[0]
+        doc_count = len(self.docmap)
+        term_doc_count = len(self.index[token])
+        return math.log((doc_count - term_doc_count + 0.5) / (term_doc_count + 0.5) + 1)
+
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1) -> float:
+        basic_tf = self.get_tf(doc_id, term)
+        return (basic_tf * (k1 + 1)) / (basic_tf + k1)
+
+
+def bm25_idf_command(term: str) -> float:
+    indx = InvertedIndex()
+    indx.load()
+    return indx.get_bm25_idf(term)
+
+def bm25_tf_command(doc_id: int, term: str, k1=BM25_K1):
+    indx = InvertedIndex()
+    indx.load()
+    return indx.get_bm25_tf(doc_id, term)
 
 def preprocess_text(text: str) -> str:
 
