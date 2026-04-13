@@ -11,9 +11,11 @@ from search_utils import (
     INDEX_PATH,
     DOCMAP_PATH,
     TERM_FREQ_PATH,
+    DOC_LENGTHS_PATH,
     load_movies,
     load_stopwords,
-    BM25_K1
+    BM25_K1,
+    BM25_B
     )
 
 class InvertedIndex:
@@ -21,11 +23,12 @@ class InvertedIndex:
         self.index = defaultdict(set)
         self.docmap = {}
         self.term_frequencies = defaultdict(Counter)
+        self.doc_lengths = defaultdict()
 
     def __add_document(self, doc_id, text):
         tokenized_text = preprocess_text(text)
-        self.term_frequencies[doc_id] = Counter()
-        for token in tokenized_text:
+        self.doc_lengths[doc_id] = len(tokenized_text)
+        for token in set(tokenized_text):
             self.index[token].add(doc_id)
         self.term_frequencies[doc_id].update(tokenized_text)
 
@@ -51,6 +54,9 @@ class InvertedIndex:
         with open(TERM_FREQ_PATH, 'wb') as term_freq_file:
             pickle.dump(self.term_frequencies, term_freq_file)
 
+        with open(DOC_LENGTHS_PATH, "wb") as doc_lengths_file:
+            pickle.dump(self.doc_lengths, doc_lengths_file)
+
     def load(self):
         try:
             with open(INDEX_PATH, "rb") as index_file:
@@ -69,6 +75,12 @@ class InvertedIndex:
                 self.term_frequencies = pickle.load(term_frq_file)
         except FileNotFoundError:
             print("Error: term frequency file not found")
+
+        try:
+            with open(DOC_LENGTHS_PATH, "rb") as doc_lengths_file:
+                self.doc_lengths = pickle.load(doc_lengths_file)
+        except FileNotFoundError:
+            print("Error: document lengths file not found")
 
     def get_tf(self, doc_id: int, term: str) -> int:
         tokenized_term = preprocess_text(term)
@@ -101,17 +113,50 @@ class InvertedIndex:
         term_doc_count = len(self.index[token])
         return math.log((doc_count - term_doc_count + 0.5) / (term_doc_count + 0.5) + 1)
 
-    def get_bm25_tf(self, doc_id, term, k1=BM25_K1) -> float:
+    def get_bm25_tf(self, doc_id, term, k1=BM25_K1, b=BM25_B) -> float:
         basic_tf = self.get_tf(doc_id, term)
-        return (basic_tf * (k1 + 1)) / (basic_tf + k1)
+        doc_length = self.doc_lengths[doc_id]
+        avg_doc_length = self.__get_avg_doc_length()
+        length_norm = 1 - b + b * (doc_length / avg_doc_length)
+        return (basic_tf * (k1 + 1)) / (basic_tf + k1 * length_norm)
 
+    def __get_avg_doc_length(self) -> float:
+        if not self.doc_lengths:
+            return 0.0
+        return sum(self.doc_lengths.values()) / len(self.doc_lengths)
+
+    def bm25(self, doc_id, term) -> float:
+        bm25_tf = self.get_bm25_tf(doc_id, term)
+        bm25_idf = self.get_bm25_idf(term)
+        return bm25_tf * bm25_idf
+
+    def bm25_search(self, query, limit):
+        tokenized_query = preprocess_text(query)
+
+        scores = defaultdict(float)
+        for doc_id in self.docmap.keys():
+            for token in tokenized_query:
+                scores[doc_id] += self.bm25(doc_id, token)
+
+        sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
+        return sorted_scores[:limit]
+
+def bm25_search_command(query, limit = 5):
+    indx = InvertedIndex()
+    indx.load()
+    bm_search_results = indx.bm25_search(query, limit)
+    for num, result in enumerate(bm_search_results, start = 1):
+        doc_id = result[0]
+        score = result[1]
+        title = indx.docmap[doc_id]["title"]
+        print(f"{num}. ({doc_id}) {title} - Score: {score:.2f}")
 
 def bm25_idf_command(term: str) -> float:
     indx = InvertedIndex()
     indx.load()
     return indx.get_bm25_idf(term)
 
-def bm25_tf_command(doc_id: int, term: str, k1=BM25_K1):
+def bm25_tf_command(doc_id: int, term: str, k1=BM25_K1, b=BM25_B):
     indx = InvertedIndex()
     indx.load()
     return indx.get_bm25_tf(doc_id, term)
