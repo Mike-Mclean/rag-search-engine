@@ -9,6 +9,7 @@ DOCMAP_PATH = os.path.join(CACHE_PATH, "docmap.pkl")
 TERM_FREQ_PATH = os.path.join(CACHE_PATH, "term_frequencies.pkl")
 STOPWORDS_PATH = os.path.join(ROOT_PATH, "data", "stopwords.txt")
 DOC_LENGTHS_PATH = os.path.join(CACHE_PATH, "doc_lengths.pkl")
+EMBEDDINGS_PATH = os.path.join(CACHE_PATH, "movie_embeddings.npy")
 
 BM25_K1 = 1.5
 BM25_B = 0.75
