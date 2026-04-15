@@ -39,6 +39,25 @@ class SemanticSearch:
                 return self.embeddings
         return self.build_embeddings(documents)
 
+    def search(self, query, limit):
+        if self.embeddings is None:
+            raise ValueError("No embeddings loaded. Call `load_or_create_embeddings` first.")
+
+        similarity_scores = []
+        query_embedding = self.generate_embedding(query)
+        for i, d_embedding in enumerate(self.embeddings):
+            similarity = cosine_similarity(query_embedding, d_embedding)
+            similarity_scores.append((similarity, self.documents[i]))
+
+        similarity_scores.sort(key=lambda x: x[0], reverse=True)
+        top_results = []
+        for i in range(limit):
+            top_score = similarity_scores[i][0]
+            doc = similarity_scores[i][1]
+            top_results.append({"score": top_score, "title": doc["title"], "description": doc["description"]})
+
+        return top_results
+
 def verify_embeddings():
     ss = SemanticSearch()
     documents = load_movies()
@@ -57,3 +76,28 @@ def embed_text(text):
     print(f"Text: {text}")
     print(f"First 3 dimensions: {embedding[:3]}")
     print(f"Dimensions: {embedding.shape[0]}")
+
+def embed_query_text(query):
+    ss = SemanticSearch()
+    embedding = ss.generate_embedding(query)
+    print(f"Query: {query}")
+    print(f"First 3 dimensions: {embedding[:3]}")
+    print(f"Shape: {embedding.shape}")
+
+def cosine_similarity(vec1, vec2):
+    dot_product = np.dot(vec1, vec2)
+    norm1 = np.linalg.norm(vec1)
+    norm2 = np.linalg.norm(vec2)
+
+    if norm1 == 0 or norm2 == 0:
+        return 0.0
+
+    return dot_product / (norm1 * norm2)
+
+def serarch_command(query: str, limit: int = 5):
+    ss = SemanticSearch()
+    documents = load_movies()
+    ss.load_or_create_embeddings(documents)
+    search_results = ss.search(query, limit)
+    for i, result in enumerate(search_results):
+        print(f"{i + 1}. {result["title"]} ({result["score"]:.2f}) \n {result["description"]} \n")
