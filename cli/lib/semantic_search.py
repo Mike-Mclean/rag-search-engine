@@ -3,6 +3,7 @@ import numpy as np
 from collections import defaultdict
 from search_utils import EMBEDDINGS_PATH, load_movies
 import os
+import re
 
 class SemanticSearch:
     def __init__(self):
@@ -94,10 +95,38 @@ def cosine_similarity(vec1, vec2):
 
     return dot_product / (norm1 * norm2)
 
-def serarch_command(query: str, limit: int = 5):
+def search_command(query: str, limit: int = 5):
     ss = SemanticSearch()
     documents = load_movies()
     ss.load_or_create_embeddings(documents)
     search_results = ss.search(query, limit)
     for i, result in enumerate(search_results):
         print(f"{i + 1}. {result["title"]} ({result["score"]:.2f}) \n {result["description"]} \n")
+
+def chunk_command(text: str, overlap, chunk_size: int = 200):
+    words = text.split()
+
+    print(f"Chunking {len(text)} characters")
+    i = 0
+    count = 1
+    while i < len(words):
+        chunk = " ".join(words[i : i + chunk_size])
+        i += chunk_size
+        if i < len(words):
+           i -= overlap
+        print(f"{count}. {chunk}")
+        count += 1
+
+def semantic_chunk_parser_command(text, max_chunk_size = 4, overlap = 0):
+    sentences = re.split(r"(?<=[.!?])\s+", text)
+
+    print(f"Semantically chunking {len(text)} characters")
+    count = 1
+    i = 0
+    while True:
+        chunk = " ".join(sentences[i : i + max_chunk_size])
+        print(f"{count}. {chunk}")
+        count += 1
+        if i + max_chunk_size >= len(sentences):
+            break
+        i += max_chunk_size - overlap

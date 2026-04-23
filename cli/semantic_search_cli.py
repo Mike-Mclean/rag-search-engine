@@ -6,7 +6,9 @@ from lib.semantic_search import (
     embed_text,
     verify_embeddings,
     embed_query_text,
-    serarch_command
+    search_command,
+    chunk_command,
+    semantic_chunk_parser_command
     )
 
 def main():
@@ -27,11 +29,25 @@ def main():
     search_parser.add_argument("query", type= str, help="Search term")
     search_parser.add_argument("--limit", type= int, default= 5, help="Maxiumum results returned from the search")
 
+    chunk_parser = subparsers.add_parser("chunk")
+    chunk_parser.add_argument("text", type= str, help="Text to chunk")
+    chunk_parser.add_argument("--chunk-size", type= int, default=200, help="Size of text chunk")
+    chunk_parser.add_argument("--overlap", type= int,help="Chunk text overlap")
+
+    semantic_chunk_parser = subparsers.add_parser("semantic_chunk")
+    semantic_chunk_parser.add_argument("text", type= str, help="String to turn into chunks")
+    semantic_chunk_parser.add_argument("--max-chunk-size", type= int, default=4, help="Maximum size of each chunk")
+    semantic_chunk_parser.add_argument("--overlap", type= int, default= 0, help="Overlap of each chunk")
+
     args = parser.parse_args()
 
     match args.command:
+        case "semantic_chunk":
+            semantic_chunk_parser_command(args.text, args.max_chunk_size, args.overlap)
+        case "chunk":
+            chunk_command(args.text, args.overlap,args.chunk_size)
         case "search":
-            serarch_command(args.query, args.limit)
+            search_command(args.query, args.limit)
         case "embedquery":
             embed_query_text(args.query)
         case "verify_embeddings":
