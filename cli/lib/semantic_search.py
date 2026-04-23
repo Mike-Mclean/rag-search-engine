@@ -103,30 +103,44 @@ def search_command(query: str, limit: int = 5):
     for i, result in enumerate(search_results):
         print(f"{i + 1}. {result["title"]} ({result["score"]:.2f}) \n {result["description"]} \n")
 
-def chunk_command(text: str, overlap, chunk_size: int = 200):
+def fixed_size_chunking(text: str, chunk_size: int = 200, overlap: int = 0):
     words = text.split()
-
-    print(f"Chunking {len(text)} characters")
+    chunks = []
     i = 0
-    count = 1
+
     while i < len(words):
         chunk = " ".join(words[i : i + chunk_size])
+        chunks.append(chunk)
         i += chunk_size
         if i < len(words):
            i -= overlap
-        print(f"{count}. {chunk}")
-        count += 1
 
-def semantic_chunk_parser_command(text, max_chunk_size = 4, overlap = 0):
+    return chunks
+
+def chunk_command(text: str, chunk_size: int = 200, overlap: int = 0):
+    chunks = fixed_size_chunking(text, chunk_size, overlap)
+    print(f"Chunking {len(text)} characters")
+    for i, chunk in enumerate(chunks):
+        print(f"{i + 1}. {chunk}")
+
+def semantic_chunk(text: str, max_chunk_size: int = 4, overlap: int = 0):
     sentences = re.split(r"(?<=[.!?])\s+", text)
-
-    print(f"Semantically chunking {len(text)} characters")
-    count = 1
+    chunks = []
     i = 0
+
     while True:
         chunk = " ".join(sentences[i : i + max_chunk_size])
-        print(f"{count}. {chunk}")
-        count += 1
+        chunks.append(chunk)
         if i + max_chunk_size >= len(sentences):
             break
         i += max_chunk_size - overlap
+
+    return chunks
+
+def semantic_chunk_parser_command(text: str, max_chunk_size: int = 4, overlap: int = 0):
+
+    chunks = semantic_chunk(text, max_chunk_size, overlap)
+
+    print(f"Semantically chunking {len(text)} characters")
+    for i, chunk in enumerate(chunks):
+        print(f"{i + 1}. {chunk}")

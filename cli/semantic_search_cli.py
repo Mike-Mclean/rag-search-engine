@@ -45,7 +45,7 @@ def main():
         case "semantic_chunk":
             semantic_chunk_parser_command(args.text, args.max_chunk_size, args.overlap)
         case "chunk":
-            chunk_command(args.text, args.overlap,args.chunk_size)
+            chunk_command(args.text, args.chunk_size, args.overlap)
         case "search":
             search_command(args.query, args.limit)
         case "embedquery":
