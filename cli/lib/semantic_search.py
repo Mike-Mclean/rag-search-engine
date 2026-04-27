@@ -1,13 +1,19 @@
 from sentence_transformers import SentenceTransformer
 import numpy as np
 from collections import defaultdict
-from search_utils import EMBEDDINGS_PATH, load_movies
+from search_utils import (
+    EMBEDDINGS_PATH,
+    load_movies,
+    DEFAULT_CHUNK_OVERLAP,
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_SEMANTIC_CHUNK_SIZE
+)
 import os
 import re
 
 class SemanticSearch:
-    def __init__(self):
-        self.model = SentenceTransformer('all-MiniLM-L6-v2')
+    def __init__(self, model_name = 'all-MiniLM-L6-v2'):
+        self.model = SentenceTransformer(model_name)
         self.embeddings = None
         self.documents = None
         self.document_map = defaultdict(dict)
@@ -103,7 +109,7 @@ def search_command(query: str, limit: int = 5):
     for i, result in enumerate(search_results):
         print(f"{i + 1}. {result["title"]} ({result["score"]:.2f}) \n {result["description"]} \n")
 
-def fixed_size_chunking(text: str, chunk_size: int = 200, overlap: int = 0):
+def fixed_size_chunking(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
     words = text.split()
     chunks = []
     i = 0
@@ -117,13 +123,13 @@ def fixed_size_chunking(text: str, chunk_size: int = 200, overlap: int = 0):
 
     return chunks
 
-def chunk_command(text: str, chunk_size: int = 200, overlap: int = 0):
+def chunk_command(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
     chunks = fixed_size_chunking(text, chunk_size, overlap)
     print(f"Chunking {len(text)} characters")
     for i, chunk in enumerate(chunks):
         print(f"{i + 1}. {chunk}")
 
-def semantic_chunk(text: str, max_chunk_size: int = 4, overlap: int = 0):
+def semantic_chunk(text: str, max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
     sentences = re.split(r"(?<=[.!?])\s+", text)
     chunks = []
     i = 0
@@ -137,7 +143,7 @@ def semantic_chunk(text: str, max_chunk_size: int = 4, overlap: int = 0):
 
     return chunks
 
-def semantic_chunk_parser_command(text: str, max_chunk_size: int = 4, overlap: int = 0):
+def semantic_chunk_parser_command(text: str, max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
 
     chunks = semantic_chunk(text, max_chunk_size, overlap)
 
