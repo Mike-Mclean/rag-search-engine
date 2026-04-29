@@ -8,10 +8,11 @@ from lib.semantic_search import (
     embed_query_text,
     search_command,
     chunk_command,
-    semantic_chunk_parser_command
+    semantic_chunk_parser_command,
+
     )
 
-from lib.chunked_semantic_search import embed_chunks_command
+from lib.chunked_semantic_search import embed_chunks_command, search_chunked_command
 
 def main():
     parser = argparse.ArgumentParser(description="Semantic Search CLI")
@@ -43,9 +44,20 @@ def main():
 
     subparsers.add_parser("embed_chunks")
 
+    semantic_search_parser = subparsers.add_parser("search_chunked")
+    semantic_search_parser.add_argument("query", type= str, help= "Search query")
+    semantic_search_parser.add_argument("--limit", type= int, default=5,help= "Maximum number of movies in result")
+
     args = parser.parse_args()
 
     match args.command:
+        case "search_chunked":
+            result = search_chunked_command(args.query, args.limit)
+            print(f"Query: {result['query']}")
+            print("Results:")
+            for i, res in enumerate(result["results"], 1):
+                print(f"\n{i}. {res['title']} (score: {res['score']:.4f})")
+                print(f"   {res['document']}...")
         case "embed_chunks":
             embeddings = embed_chunks_command()
             print(f"Generated {len(embeddings)} chunked embeddings")
