@@ -1,15 +1,19 @@
-from sentence_transformers import SentenceTransformer
-import numpy as np
-from collections import defaultdict
-from search_utils import (
-    EMBEDDINGS_PATH,
-    load_movies,
-    DEFAULT_CHUNK_OVERLAP,
-    DEFAULT_CHUNK_SIZE,
-    DEFAULT_SEMANTIC_CHUNK_SIZE
-)
 import os
 import re
+import numpy as np
+
+from sentence_transformers import SentenceTransformer
+
+from collections import defaultdict
+from search_utils import (
+    DEFAULT_CHUNK_OVERLAP,
+    DEFAULT_CHUNK_SIZE,
+    DEFAULT_SEARCH_LIMIT,
+    DEFAULT_SEMANTIC_CHUNK_SIZE,
+    EMBEDDINGS_PATH,
+    load_movies
+)
+
 
 class SemanticSearch:
     def __init__(self, model_name = 'all-MiniLM-L6-v2'):
@@ -19,35 +23,38 @@ class SemanticSearch:
         self.document_map = defaultdict(dict)
 
     def generate_embedding(self, text: str):
-        if not text or text.isspace():
+        if not text or not text.strip():
             raise ValueError("Error: text doesn't exist or is only whitespace")
         embedding = self.model.encode([text])
         return embedding[0]
 
     def build_embeddings(self, documents):
         self.documents = documents
+        self.document_map = {}
         str_movies = []
         for doc in documents:
-            doc_id = doc["id"]
-            self.document_map[doc_id] = doc
+            self.document_map[doc["id"]] = doc
             str_movies.append(f"{doc['title']}: {doc['description']}")
         self.embeddings = self.model.encode(str_movies, show_progress_bar=True)
+
+        os.makedirs(os.path.dirname(EMBEDDINGS_PATH), exist_ok=True)
         np.save(EMBEDDINGS_PATH, self.embeddings)
         return self.embeddings
 
     def load_or_create_embeddings(self, documents):
         self.documents = documents
+        self.document_map = {}
         for doc in documents:
-            doc_id = doc["id"]
-            self.document_map[doc_id] = doc
+            self.document_map[doc["id"]] = doc
+
         if os.path.exists(EMBEDDINGS_PATH):
             self.embeddings = np.load(EMBEDDINGS_PATH)
             if len(self.embeddings) == len(documents):
                 return self.embeddings
         return self.build_embeddings(documents)
 
-    def search(self, query, limit):
-        if self.embeddings is None:
+    def search(self, query, limit=DEFAULT_SEARCH_LIMIT):
+        if self.embeddings is None or self.embeddings.size == 0:
             raise ValueError("No embeddings loaded. Call `load_or_create_embeddings` first.")
 
         similarity_scores = []
@@ -58,10 +65,14 @@ class SemanticSearch:
 
         similarity_scores.sort(key=lambda x: x[0], reverse=True)
         top_results = []
-        for i in range(limit):
-            top_score = similarity_scores[i][0]
-            doc = similarity_scores[i][1]
-            top_results.append({"score": top_score, "title": doc["title"], "description": doc["description"]})
+        for score, doc in similarity_scores[:limit]:
+            top_results.append(
+                {
+                    "score": score,
+                    "title": doc["title"],
+                    "description": doc["description"]
+                    }
+            )
 
         return top_results
 
@@ -101,7 +112,7 @@ def cosine_similarity(vec1, vec2):
 
     return dot_product / (norm1 * norm2)
 
-def search_command(query: str, limit: int = 5):
+def search_command(query: str, limit: int = DEFAULT_SEARCH_LIMIT):
     ss = SemanticSearch()
     documents = load_movies()
     ss.load_or_create_embeddings(documents)
@@ -109,7 +120,9 @@ def search_command(query: str, limit: int = 5):
     for i, result in enumerate(search_results):
         print(f"{i + 1}. {result["title"]} ({result["score"]:.2f}) \n {result["description"]} \n")
 
-def fixed_size_chunking(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
+def fixed_size_chunking(text: str,
+                        chunk_size: int = DEFAULT_CHUNK_SIZE,
+                        overlap: int = DEFAULT_CHUNK_OVERLAP) -> list[str]:
     words = text.split()
     chunks = []
     i = 0
@@ -123,13 +136,21 @@ def fixed_size_chunking(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap
 
     return chunks
 
-def chunk_command(text: str, chunk_size: int = DEFAULT_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
+def chunk_command(
+        text: str,
+        chunk_size: int = DEFAULT_CHUNK_SIZE,
+        overlap: int = DEFAULT_CHUNK_OVERLAP
+    ) -> None:
     chunks = fixed_size_chunking(text, chunk_size, overlap)
     print(f"Chunking {len(text)} characters")
     for i, chunk in enumerate(chunks):
         print(f"{i + 1}. {chunk}")
 
-def semantic_chunk(text: str, max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE, overlap: int = DEFAULT_CHUNK_OVERLAP):
+def semantic_chunk(
+        text: str,
+        max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE,
+        overlap: int = DEFAULT_CHUNK_OVERLAP
+    ) -> list[str]:
     sentences = re.split(r"(?<=[.!?])\s+", text)
     chunks = []
     i = 0

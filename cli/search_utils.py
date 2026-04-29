@@ -29,12 +29,12 @@ EMBEDDINGS_PATH = os.path.join(CACHE_PATH, "movie_embeddings.npy")
 CHUNK_EMBEDDINGS_PATH = os.path.join(CACHE_PATH, "chunk_metadata.npy")
 CHUNK_METADATA_PATH = os.path.join(CACHE_PATH, "chunk_metadata.json")
 
-def load_movies():
+def load_movies() -> list[dict]:
     with open(DATA_PATH, "r") as json_file:
         data = json.load(json_file)
     return data["movies"]
 
-def load_stopwords():
+def load_stopwords() -> list[str]:
     with open(STOPWORDS_PATH, "r") as stopwords_file:
         return stopwords_file.read().splitlines()
 
