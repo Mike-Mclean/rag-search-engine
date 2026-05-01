@@ -1,8 +1,8 @@
 import argparse
-from key_word_search import *
+from cli.lib.keyword_search import *
 from search_movies import *
-from key_word_search import bm25_idf_command, bm25_tf_command, bm25_search_command
-from search_utils import BM25_K1
+from cli.lib.keyword_search import bm25_idf_command, bm25_tf_command, bm25_search_command
+from cli.lib.search_utils import BM25_K1
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Keyword Search CLI")

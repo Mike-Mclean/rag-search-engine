@@ -7,7 +7,7 @@ from lib.semantic_search import (
     semantic_chunk,
     cosine_similarity
 )
-from search_utils import (
+from .search_utils import (
     CHUNK_EMBEDDINGS_PATH,
     CHUNK_METADATA_PATH,
     load_movies,

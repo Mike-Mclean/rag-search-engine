@@ -5,7 +5,7 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 
 from collections import defaultdict
-from search_utils import (
+from lib.search_utils import (
     DEFAULT_CHUNK_OVERLAP,
     DEFAULT_CHUNK_SIZE,
     DEFAULT_SEARCH_LIMIT,
@@ -151,15 +151,27 @@ def semantic_chunk(
         max_chunk_size: int = DEFAULT_SEMANTIC_CHUNK_SIZE,
         overlap: int = DEFAULT_CHUNK_OVERLAP
     ) -> list[str]:
+    text.strip()
+
+    if not text:
+        return []
+
     sentences = re.split(r"(?<=[.!?])\s+", text)
+
     chunks = []
     i = 0
 
-    while True:
-        chunk = " ".join(sentences[i : i + max_chunk_size])
-        chunks.append(chunk)
-        if i + max_chunk_size >= len(sentences):
-            break
+    while i < len(sentences):
+        if len(sentences) == 1 and not sentences[0].endswith((".", "!", "?")):
+            chunk_sentences = sentences[0]
+            chunk = chunk_sentences.strip()
+        else:
+            chunk_sentences = sentences[i : i + max_chunk_size]
+            if chunks and len(chunk_sentences) <= overlap:
+                break
+            chunk = " ".join(chunk_sentences).strip()
+        if chunk:
+            chunks.append(chunk)
         i += max_chunk_size - overlap
 
     return chunks
@@ -171,3 +183,8 @@ def semantic_chunk_parser_command(text: str, max_chunk_size: int = DEFAULT_SEMAN
     print(f"Semantically chunking {len(text)} characters")
     for i, chunk in enumerate(chunks):
         print(f"{i + 1}. {chunk}")
+
+
+if __name__ == "__main__":
+    test_str = "Leading and trailing spaces"
+    print(semantic_chunk(test_str))

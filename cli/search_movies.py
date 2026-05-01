@@ -1,5 +1,5 @@
-from key_word_search import preprocess_text
-from key_word_search import InvertedIndex
+from cli.lib.keyword_search import preprocess_text
+from cli.lib.keyword_search import InvertedIndex
 
 SEARCH_LIMIT = 5
 
