@@ -6,7 +6,7 @@ from collections import Counter, defaultdict
 import math
 
 
-from cli.lib.search_utils import (
+from .search_utils import (
     CACHE_PATH,
     INDEX_PATH,
     DOCMAP_PATH,

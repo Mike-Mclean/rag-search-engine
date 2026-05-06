@@ -1,7 +1,8 @@
 import os
 
 from .keyword_search import InvertedIndex
-from .semantic_search import ChunkedSemanticSearch
+from .chunked_semantic_search import ChunkedSemanticSearch
+from .search_utils import DEFAULT_ALPHA, DEFAULT_SEARCH_LIMIT, load_movies, INDEX_PATH, format_search_results
 
 class HybridSearch:
     def __init__(self, documents):
@@ -10,7 +11,7 @@ class HybridSearch:
         self.semantic_search.load_or_create_chunk_embeddings(documents)
 
         self.idx = InvertedIndex()
-        if not os.path.exists(self.idx.index_path):
+        if not os.path.exists(INDEX_PATH):
             self.idx.build()
             self.idx.save()
 
@@ -19,7 +20,86 @@ class HybridSearch:
         return self.idx.bm25_search(query, limit)
 
     def weighted_search(self, query, alpha, limit=5):
-        raise NotImplementedError("Weighted hybrid search is not implemented yet.")
+        keyword_search_results = self.idx.bm25_search(query, limit * 500)
+        normalized_keyword_search = normalize_search_results(keyword_search_results)
+
+        semantic_search_results = self.semantic_search.search_chunks(query, limit * 500)
+        normalized_semantic_search = normalize_search_results(semantic_search_results)
+
+        search_results = {}
+        for result in normalized_keyword_search:
+            doc_id = result["id"]
+            if doc_id not in search_results:
+                search_results[doc_id] = {
+                    "title": result["title"],
+                    "document": result["document"],
+                    "keyword_score": 0.0,
+                    "semantic_score": 0.0
+                }
+            if result["normalized_score"] > search_results[doc_id]["keyword_score"]:
+                search_results[doc_id]["keyword_score"] = result["normalized_score"]
+
+        for result in normalized_semantic_search:
+            doc_id = result["id"]
+            if doc_id not in search_results:
+                search_results[doc_id] = {
+                    "title": result["title"],
+                    "document": result["document"],
+                    "keyword_score": 0.0,
+                    "semantic_score": 0.0
+                }
+            if result["normalized_score"] > search_results[doc_id]["semantic_score"]:
+                search_results[doc_id]["semantic_score"] = result["normalized_score"]
+        hybrid_results = []
+        for doc_id, data in search_results.items():
+            score = hybrid_score(data["keyword_score"], data["semantic_score"], alpha)
+            result = format_search_results(
+                doc_id=doc_id,
+                title=data["title"],
+                document=data["document"],
+                score=score,
+                keyword_score=data["keyword_score"],
+                semantic_score=data["semantic_score"]
+            )
+            hybrid_results.append(result)
+
+        return sorted(hybrid_results, key=lambda x: x["score"], reverse=True)
 
     def rrf_search(self, query, k, limit=10):
         raise NotImplementedError("RRF hybrid search is not implemented yet.")
+
+def normalize_scores(scores: list[float]) -> list[float]:
+    if not scores:
+        return []
+
+    minimum = min(scores)
+    maximum = max(scores)
+    if minimum == maximum:
+        return [1.0] * len(scores)
+
+    normalized_scores = []
+    for score in scores:
+        norm_score = (score - minimum) / (maximum - minimum)
+        normalized_scores.append(norm_score)
+
+    return normalized_scores
+
+def hybrid_score(bm25_score, semantic_score, alpha=0.5):
+    return alpha * bm25_score + (1 - alpha) * semantic_score
+
+def normalize_search_results(results: list[dict]) -> list[dict]:
+    scores = []
+    for result in results:
+        scores.append(result["score"])
+
+    normalized = normalize_scores(scores)
+    for i, result in enumerate(results):
+        result["normalized_score"] = normalized[i]
+
+    return results
+
+
+def weighted_search_command(query, alpha = DEFAULT_ALPHA, limit = DEFAULT_SEARCH_LIMIT):
+    movies = load_movies()
+    hybrid_search = HybridSearch(movies)
+    return hybrid_search.weighted_search(query, alpha, limit)

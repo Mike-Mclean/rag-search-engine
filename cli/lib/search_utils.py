@@ -2,6 +2,7 @@ import os
 import json
 from typing import Any
 
+DEFAULT_ALPHA = 0.5
 SEARCH_LIMIT = 5
 DEFAULT_SEARCH_LIMIT = 5
 SCORE_PRECISION = 3
@@ -10,7 +11,7 @@ DOCUMENT_PREVIEW_LENGTH = 100
 BM25_K1 = 1.5
 BM25_B = 0.75
 
-ROOT_PATH = os.path.dirname(os.path.dirname(__file__))
+ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_PATH = os.path.join(ROOT_PATH, "data", "movies.json")
 STOPWORDS_PATH = os.path.join(ROOT_PATH, "data", "stopwords.txt")
 
