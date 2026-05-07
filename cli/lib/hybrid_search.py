@@ -2,7 +2,14 @@ import os
 
 from .keyword_search import InvertedIndex
 from .chunked_semantic_search import ChunkedSemanticSearch
-from .search_utils import DEFAULT_ALPHA, DEFAULT_SEARCH_LIMIT, load_movies, INDEX_PATH, format_search_results, DEFAULT_K
+from .search_utils import (
+    DEFAULT_ALPHA,
+    DEFAULT_SEARCH_LIMIT,
+    load_movies, INDEX_PATH,
+    format_search_results,
+    DEFAULT_K
+)
+from .query_enhancement import correct_spelling, query_rewrite
 
 class HybridSearch:
     def __init__(self, documents):
@@ -155,7 +162,17 @@ def weighted_search_command(query, alpha = DEFAULT_ALPHA, limit = DEFAULT_SEARCH
 def rrf_score(rank, k=60):
     return 1 / (k + rank)
 
-def rrf_search_command(query, k = DEFAULT_K, limit = DEFAULT_SEARCH_LIMIT):
+def rrf_search_command(query, enhance, k = DEFAULT_K, limit = DEFAULT_SEARCH_LIMIT):
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
+
+    if enhance == "spell":
+        enhanced_query = correct_spelling(query)
+        print(f"Enhanced query ({enhance}): '{query}' -> '{enhanced_query}'\n")
+        return hybrid_search.rrf_search(enhanced_query, k, limit)
+    elif enhance == "rewrite":
+        enhanced_query = query_rewrite(query)
+        print(f"Enhanced query ({enhance}): '{query}' -> '{enhanced_query}'\n")
+        return hybrid_search.rrf_search(enhanced_query, k, limit)
+
     return hybrid_search.rrf_search(query, k, limit)

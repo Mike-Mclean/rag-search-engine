@@ -28,27 +28,13 @@ def main() -> None:
     rrf_search_parser.add_argument("query", type=str, help="Query to search")
     rrf_search_parser.add_argument("-k", type=int, default=60, help="The k weighting parameter")
     rrf_search_parser.add_argument("--limit", type=int, default=5, help="Search limit number")
-    rrf_search_parser.add_argument("--enhance", type=str, choices=["spell"], help="Query enhancement method")
+    rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite"], help="Query enhancement method")
 
     args = parser.parse_args()
 
     match args.command:
         case "rrf-search":
-            query = args.query
-            if args.enhance:
-                model_query = f"""Fix any spelling errors in the user-provided movie search query below.
-Correct only clear, high-confidence typos. Do not rewrite, add, remove, or reorder words.
-Preserve punctuation and capitalization unless a change is required for a typo fix.
-If there are no spelling errors, or if you're unsure, output the original query unchanged.
-Output only the final query text, nothing else.
-User query: "{query}"
-"""
-                response = client.models.generate_content(model="gemma-4-31b-it", contents=model_query)
-                enhanced_query = response.text
-                print(f"Enhanced query ({args.enhance}): '{query}' -> '{enhanced_query}'\n")
-                query = enhanced_query
-                
-            results = rrf_search_command(query, args.k, args.limit)
+            results = rrf_search_command(args.query, args.enhance, args.k, args.limit)
             for i, res in enumerate(results, 1):
                 print(f"{i}. {res['title']}")
                 print(f"   RRF Score: {res.get('score', 0):.3f}")
