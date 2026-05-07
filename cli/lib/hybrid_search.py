@@ -2,7 +2,7 @@ import os
 
 from .keyword_search import InvertedIndex
 from .chunked_semantic_search import ChunkedSemanticSearch
-from .search_utils import DEFAULT_ALPHA, DEFAULT_SEARCH_LIMIT, load_movies, INDEX_PATH, format_search_results
+from .search_utils import DEFAULT_ALPHA, DEFAULT_SEARCH_LIMIT, load_movies, INDEX_PATH, format_search_results, DEFAULT_K
 
 class HybridSearch:
     def __init__(self, documents):
@@ -20,7 +20,7 @@ class HybridSearch:
         return self.idx.bm25_search(query, limit)
 
     def weighted_search(self, query, alpha, limit=5):
-        keyword_search_results = self.idx.bm25_search(query, limit * 500)
+        keyword_search_results = self.idx.bm25_search(query, limit * 500) #returns a list of tuples, feels wrong
         normalized_keyword_search = normalize_search_results(keyword_search_results)
 
         semantic_search_results = self.semantic_search.search_chunks(query, limit * 500)
@@ -65,8 +65,56 @@ class HybridSearch:
 
         return sorted(hybrid_results, key=lambda x: x["score"], reverse=True)
 
-    def rrf_search(self, query, k, limit=10):
-        raise NotImplementedError("RRF hybrid search is not implemented yet.")
+    def rrf_search(self, query, k = DEFAULT_K, limit=10):
+        keyword_search_results = self.idx.bm25_search(query, limit * 500)
+        semantic_search_results = self.semantic_search.search_chunks(query, limit * 500)
+
+        search_map = {}
+        for rank, result in enumerate(keyword_search_results, 1):
+            doc_id = result["id"]
+            if doc_id not in search_map:
+                search_map[doc_id] = {
+                    "title": result["title"],
+                    "document": result["document"],
+                    "rrf_score": 0.0,
+                    "keyword_rank": None,
+                    "semantic_rank": None
+                }
+            if search_map[doc_id]["keyword_rank"] is None:
+                search_map[doc_id]["keyword_rank"] = rank
+                search_map[doc_id]["rrf_score"] += rrf_score(rank, k)
+
+
+        for rank, result in enumerate(semantic_search_results, 1):
+            doc_id = result["id"]
+            if doc_id not in search_map:
+                search_map[doc_id] = {
+                    "title": result["title"],
+                    "document": result["document"],
+                    "rrf_score": 0.0,
+                    "keyword_rank": None,
+                    "semantic_rank": None
+                }
+            if search_map[doc_id]["semantic_rank"] is None:
+                search_map[doc_id]["semantic_rank"] = rank
+                search_map[doc_id]["rrf_score"] += rrf_score(rank, k)
+
+        sorted_items = sorted(search_map.items(), key=lambda x: x[1]["rrf_score"], reverse=True)
+
+        search_results = []
+        for doc_id, data in sorted_items:
+            result = format_search_results(
+                doc_id = doc_id,
+                title = data["title"],
+                document = data["document"],
+                score = data["rrf_score"],
+                keyword_rank = data["keyword_rank"],
+                semantic_rank = data["semantic_rank"]
+            )
+            search_results.append(result)
+
+        return search_results[:limit]
+
 
 def normalize_scores(scores: list[float]) -> list[float]:
     if not scores:
@@ -103,3 +151,11 @@ def weighted_search_command(query, alpha = DEFAULT_ALPHA, limit = DEFAULT_SEARCH
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
     return hybrid_search.weighted_search(query, alpha, limit)
+
+def rrf_score(rank, k=60):
+    return 1 / (k + rank)
+
+def rrf_search_command(query, k = DEFAULT_K, limit = DEFAULT_SEARCH_LIMIT):
+    movies = load_movies()
+    hybrid_search = HybridSearch(movies)
+    return hybrid_search.rrf_search(query, k, limit)

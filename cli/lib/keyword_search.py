@@ -15,7 +15,8 @@ from .search_utils import (
     load_movies,
     load_stopwords,
     BM25_K1,
-    BM25_B
+    BM25_B,
+    format_search_results
     )
 
 class InvertedIndex:
@@ -130,7 +131,7 @@ class InvertedIndex:
         bm25_idf = self.get_bm25_idf(term)
         return bm25_tf * bm25_idf
 
-    def bm25_search(self, query, limit):
+    def bm25_search(self, query, limit) -> list[dict]:
         tokenized_query = preprocess_text(query)
 
         scores = defaultdict(float)
@@ -139,7 +140,18 @@ class InvertedIndex:
                 scores[doc_id] += self.bm25(doc_id, token)
 
         sorted_scores = sorted(scores.items(), key=lambda item: item[1], reverse=True)
-        return sorted_scores[:limit]
+        results = []
+        for doc_id, score in sorted_scores[:limit]:
+            doc = self.docmap[doc_id]
+            formatted_result = format_search_results(
+                doc_id=doc["id"],
+                title=doc["title"],
+                document=doc["description"],
+                score=score
+            )
+            results.append(formatted_result)
+
+        return results
 
 def bm25_search_command(query, limit = 5):
     indx = InvertedIndex()

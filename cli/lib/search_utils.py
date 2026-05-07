@@ -2,6 +2,7 @@ import os
 import json
 from typing import Any
 
+DEFAULT_K = 60
 DEFAULT_ALPHA = 0.5
 SEARCH_LIMIT = 5
 DEFAULT_SEARCH_LIMIT = 5
