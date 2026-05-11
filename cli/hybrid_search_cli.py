@@ -43,6 +43,8 @@ def main() -> None:
                     print(f"   Re-rank Score: {res.get('rerank_score', 0):.3f}")
                 elif args.rerank_method and args.rerank_method == "batch":
                     print(f"   Re-rank Rank: {res.get('rerank_score', 0):.3f}")
+                elif args.rerank_method and args.rerank_method == "cross_encoder":
+                    print(f"   Cross Encoder Score: {res.get('rerank_score', 0):.3f}")
 
                 print(f"   RRF Score: {res.get('score', 0):.3f}")
                 metadata = res.get("metadata", {})

@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from google import genai
 from time import sleep
 import json
+from sentence_transformers import CrossEncoder
 
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -67,57 +68,79 @@ def expand_query(query: str) -> str:
 
 def rerank_search(query: str, search_results: list[dict], rerank_method) -> list[dict]:
     if rerank_method == "individual":
-        for doc in search_results:
-            prompt = f"""Rate how well this movie matches the search query.
-
-            Query: "{query}"
-            Movie: {doc.get("title", "")} - {doc.get("document", "")}
-
-            Consider:
-            - Direct relevance to query
-            - User intent (what they're looking for)
-            - Content appropriateness
-
-            Rate 0-10 (10 = perfect match).
-            Output ONLY the number in your response, no other text or explanation.
-
-            Score:"""
-
-            response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
-            score = float(response.text)
-
-            doc["rerank_score"] = score
-
-            sleep(5)
-        return sorted(search_results, key=lambda doc: doc["rerank_score"], reverse=True)
+        return individual_rerank(query, search_results)
 
     if rerank_method == "batch":
+        return batch_rerank(query, search_results)
 
-        doc_list_str = ""
-        for doc in search_results:
-            doc_list_str += f"ID {doc["id"]} | Title: {doc["title"]} | Overview: {doc["document"][:200]}\n"
+    if rerank_method == "cross_encoder":
+        return cross_encoder_rerank(query, search_results)
 
-        prompt = f"""Rank the movies listed below by relevance to the following search query.
+
+def individual_rerank(query, search_results):
+    for doc in search_results:
+        prompt = f"""Rate how well this movie matches the search query.
 
         Query: "{query}"
+        Movie: {doc.get("title", "")} - {doc.get("document", "")}
 
-        Movies:
-        {doc_list_str}
+        Consider:
+        - Direct relevance to query
+        - User intent (what they're looking for)
+        - Content appropriateness
 
-        Return ONLY the movie IDs in order of relevance (best match first). Return a valid JSON list, nothing else.
+        Rate 0-10 (10 = perfect match).
+        Output ONLY the number in your response, no other text or explanation.
 
-        For example:
-        [75, 12, 34, 2, 1]
-
-        Ranking:"""
+        Score:"""
 
         response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
-        rerank_scores = json.loads(response.text)
+        score = float(response.text)
 
-        id_to_rank = {doc_id: i for i, doc_id in enumerate(rerank_scores, 1)}
+        doc["rerank_score"] = score
 
-        for doc in search_results:
-            doc["rerank_score"] = id_to_rank[doc["id"]]
+        sleep(5)
 
+    return sorted(search_results, key=lambda doc: doc["rerank_score"], reverse=True)
 
-        return sorted(search_results, key=lambda doc: doc["rerank_score"])
+def batch_rerank(query, search_results):
+    doc_list_str = ""
+    for doc in search_results:
+        doc_list_str += f"ID {doc["id"]} | Title: {doc["title"]} | Overview: {doc["document"][:200]}\n"
+
+    prompt = f"""Rank the movies listed below by relevance to the following search query.
+
+    Query: "{query}"
+
+    Movies:
+    {doc_list_str}
+
+    Return ONLY the movie IDs in order of relevance (best match first). Return a valid JSON list, nothing else.
+
+    For example:
+    [75, 12, 34, 2, 1]
+
+    Ranking:"""
+
+    response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
+    rerank_scores = json.loads(response.text)
+
+    id_to_rank = {doc_id: i for i, doc_id in enumerate(rerank_scores, 1)}
+
+    for doc in search_results:
+        doc["rerank_score"] = id_to_rank[doc["id"]]
+
+    return sorted(search_results, key=lambda doc: doc["rerank_score"])
+
+def cross_encoder_rerank(query, search_results):
+    pairs = []
+    for doc in search_results:
+        pairs.append([query, f"{doc.get('title', '')} - {doc.get('document', '')}"])
+
+    cross_encoder = CrossEncoder("cross-encoder/ms-marco-TinyBERT-L2-v2")
+    scores = cross_encoder.predict(pairs)
+
+    for i, doc in enumerate(search_results):
+        doc["rerank_score"] = scores[i]
+
+    return sorted(search_results, key=lambda doc: doc["rerank_score"], reverse=True)
