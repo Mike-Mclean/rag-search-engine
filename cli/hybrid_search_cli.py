@@ -28,15 +28,22 @@ def main() -> None:
     rrf_search_parser.add_argument("query", type=str, help="Query to search")
     rrf_search_parser.add_argument("-k", type=int, default=60, help="The k weighting parameter")
     rrf_search_parser.add_argument("--limit", type=int, default=5, help="Search limit number")
-    rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite"], help="Query enhancement method")
+    rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
+    rrf_search_parser.add_argument("--rerank-method",type=str, choices=["individual", "batch", "cross_encoder"], help="Option to rerank the search results")
 
     args = parser.parse_args()
 
     match args.command:
         case "rrf-search":
-            results = rrf_search_command(args.query, args.enhance, args.k, args.limit)
+            results = rrf_search_command(args.query, args.enhance, args.rerank_method, args.k, args.limit)
             for i, res in enumerate(results, 1):
                 print(f"{i}. {res['title']}")
+
+                if args.rerank_method and args.rerank_method == "individual":
+                    print(f"   Re-rank Score: {res.get('rerank_score', 0):.3f}")
+                elif args.rerank_method and args.rerank_method == "batch":
+                    print(f"   Re-rank Rank: {res.get('rerank_score', 0):.3f}")
+
                 print(f"   RRF Score: {res.get('score', 0):.3f}")
                 metadata = res.get("metadata", {})
                 if "keyword_rank" in metadata and "semantic_rank" in metadata:

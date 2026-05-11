@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 from google import genai
+from time import sleep
+import json
 
 load_dotenv()
 api_key = os.environ.get("GEMINI_API_KEY")
@@ -21,7 +23,7 @@ def correct_spelling(query: str) -> str:
     response = client.models.generate_content(model="gemma-4-31b-it", contents=model_query)
     return response.text
 
-def query_rewrite(query: str) -> str:
+def rewrite_query(query: str) -> str:
     model_query = f"""Rewrite the user-provided movie search query below to be more specific and searchable.
 
     Consider:
@@ -44,3 +46,78 @@ def query_rewrite(query: str) -> str:
 
     response = client.models.generate_content(model="gemma-4-31b-it", contents=model_query)
     return response.text
+
+def expand_query(query: str) -> str:
+    model_query = f"""Expand the user-provided movie search query below with related terms.
+
+    Add synonyms and related concepts that might appear in movie descriptions.
+    Keep expansions relevant and focused.
+    Output only the additional terms; they will be appended to the original query.
+
+    Examples:
+    - "scary bear movie" -> "scary horror grizzly bear movie terrifying film"
+    - "action movie with bear" -> "action thriller bear chase fight adventure"
+    - "comedy with bear" -> "comedy funny bear humor lighthearted"
+
+    User query: "{query}"
+    """
+
+    response = client.models.generate_content(model="gemma-4-31b-it", contents=model_query)
+    return response.text
+
+def rerank_search(query: str, search_results: list[dict], rerank_method) -> list[dict]:
+    if rerank_method == "individual":
+        for doc in search_results:
+            prompt = f"""Rate how well this movie matches the search query.
+
+            Query: "{query}"
+            Movie: {doc.get("title", "")} - {doc.get("document", "")}
+
+            Consider:
+            - Direct relevance to query
+            - User intent (what they're looking for)
+            - Content appropriateness
+
+            Rate 0-10 (10 = perfect match).
+            Output ONLY the number in your response, no other text or explanation.
+
+            Score:"""
+
+            response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
+            score = float(response.text)
+
+            doc["rerank_score"] = score
+
+            sleep(5)
+        return sorted(search_results, key=lambda doc: doc["rerank_score"], reverse=True)
+
+    if rerank_method == "batch":
+
+        doc_list_str = ""
+        for doc in search_results:
+            doc_list_str += f"ID {doc["id"]} | Title: {doc["title"]} | Overview: {doc["document"][:200]}\n"
+
+        prompt = f"""Rank the movies listed below by relevance to the following search query.
+
+        Query: "{query}"
+
+        Movies:
+        {doc_list_str}
+
+        Return ONLY the movie IDs in order of relevance (best match first). Return a valid JSON list, nothing else.
+
+        For example:
+        [75, 12, 34, 2, 1]
+
+        Ranking:"""
+
+        response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
+        rerank_scores = json.loads(response.text)
+
+        id_to_rank = {doc_id: i for i, doc_id in enumerate(rerank_scores, 1)}
+
+        for doc in search_results:
+            doc["rerank_score"] = id_to_rank[doc["id"]]
+
+
+        return sorted(search_results, key=lambda doc: doc["rerank_score"])

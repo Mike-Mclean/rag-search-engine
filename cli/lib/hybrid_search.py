@@ -9,7 +9,7 @@ from .search_utils import (
     format_search_results,
     DEFAULT_K
 )
-from .query_enhancement import correct_spelling, query_rewrite
+from .query_enhancement import correct_spelling, rewrite_query, expand_query, rerank_search
 
 class HybridSearch:
     def __init__(self, documents):
@@ -162,17 +162,23 @@ def weighted_search_command(query, alpha = DEFAULT_ALPHA, limit = DEFAULT_SEARCH
 def rrf_score(rank, k=60):
     return 1 / (k + rank)
 
-def rrf_search_command(query, enhance, k = DEFAULT_K, limit = DEFAULT_SEARCH_LIMIT):
+def rrf_search_command(query, enhance, rerank_method, k = DEFAULT_K, limit = DEFAULT_SEARCH_LIMIT):
     movies = load_movies()
     hybrid_search = HybridSearch(movies)
 
-    if enhance == "spell":
-        enhanced_query = correct_spelling(query)
+    if enhance:
+        if enhance == "spell":
+            enhanced_query = correct_spelling(query)
+        elif enhance == "rewrite":
+            enhanced_query = rewrite_query(query)
+        elif enhance == "expand":
+            enhanced_query = expand_query(query)
         print(f"Enhanced query ({enhance}): '{query}' -> '{enhanced_query}'\n")
         return hybrid_search.rrf_search(enhanced_query, k, limit)
-    elif enhance == "rewrite":
-        enhanced_query = query_rewrite(query)
-        print(f"Enhanced query ({enhance}): '{query}' -> '{enhanced_query}'\n")
-        return hybrid_search.rrf_search(enhanced_query, k, limit)
+
+    if rerank_method:
+        search_results = hybrid_search.rrf_search(query, k, limit * 5)
+        reranked_results = rerank_search(query, search_results, rerank_method)
+        return reranked_results[:limit]
 
     return hybrid_search.rrf_search(query, k, limit)
