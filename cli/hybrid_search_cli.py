@@ -1,5 +1,6 @@
 import argparse
 from lib.hybrid_search import normalize_scores, weighted_search_command, rrf_search_command
+from lib.evaluation import evaluate_LLM
 from google import genai
 from dotenv import load_dotenv
 import os
@@ -30,12 +31,14 @@ def main() -> None:
     rrf_search_parser.add_argument("--limit", type=int, default=5, help="Search limit number")
     rrf_search_parser.add_argument("--enhance", type=str, choices=["spell", "rewrite", "expand"], help="Query enhancement method")
     rrf_search_parser.add_argument("--rerank-method",type=str, choices=["individual", "batch", "cross_encoder"], help="Option to rerank the search results")
+    rrf_search_parser.add_argument("--evaluate", action="store_true", help="Ask the LLM to evaluate the results")
 
     args = parser.parse_args()
 
     match args.command:
         case "rrf-search":
             results = rrf_search_command(args.query, args.enhance, args.rerank_method, args.k, args.limit)
+
             for i, res in enumerate(results, 1):
                 print(f"{i}. {res['title']}")
 
@@ -53,6 +56,12 @@ def main() -> None:
                         f"   BM25: {metadata['keyword_rank']}, Semantic: {metadata['semantic_rank']}"
                     )
                 print(f"   {res['document'][:100]}...")
+
+            if args.evaluate:
+                relevance_scores = evaluate_LLM(args.query, results)
+                for i, score in enumerate(relevance_scores):
+                    print(f"{i + 1}. {results[i]["title"]}: {score}/3")
+
         case "weighted-search":
             results = weighted_search_command(args.query, args.alpha, args.limit)
             for i, res in enumerate(results, 1):

@@ -15,6 +15,7 @@ BM25_B = 0.75
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
 DATA_PATH = os.path.join(ROOT_PATH, "data", "movies.json")
 STOPWORDS_PATH = os.path.join(ROOT_PATH, "data", "stopwords.txt")
+GOLDEN_DATA_PATH = os.path.join(ROOT_PATH, "data", "golden_dataset.json")
 
 CACHE_PATH = os.path.join(ROOT_PATH, "cache")
 
@@ -35,6 +36,11 @@ def load_movies() -> list[dict]:
     with open(DATA_PATH, "r") as json_file:
         data = json.load(json_file)
     return data["movies"]
+
+def load_golden_data() -> list[dict]:
+    with open(GOLDEN_DATA_PATH, "r") as json_file:
+        golden_data = json.load(json_file)
+    return golden_data["test_cases"]
 
 def load_stopwords() -> list[str]:
     with open(STOPWORDS_PATH, "r") as stopwords_file:

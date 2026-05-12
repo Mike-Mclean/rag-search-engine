@@ -1,6 +1,6 @@
 import argparse
 from cli.lib.keyword_search import *
-from search_movies import *
+from cli.lib.search_movies import *
 from cli.lib.keyword_search import bm25_idf_command, bm25_tf_command, bm25_search_command
 from cli.lib.search_utils import BM25_K1
 
