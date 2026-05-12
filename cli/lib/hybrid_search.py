@@ -21,6 +21,8 @@ class HybridSearch:
         if not os.path.exists(INDEX_PATH):
             self.idx.build()
             self.idx.save()
+        else:
+            self.idx.load()
 
     def _bm25_search(self, query, limit):
         self.idx.load()
