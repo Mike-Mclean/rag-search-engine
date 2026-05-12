@@ -42,14 +42,14 @@ def rag_command(query):
     print("RAG Response:")
     print(response.text)
 
-def summarize_command(query):
+def summarize_command(query, limit = 5):
     movies = load_movies()
 
     semantic_search = SemanticSearch()
     semantic_search.load_or_create_embeddings(movies)
     hybrid_search = HybridSearch(movies)
 
-    results = hybrid_search.rrf_search(query)
+    results = hybrid_search.rrf_search(query, limit = limit)
 
     prompt = f"""Provide information useful to the query below by synthesizing data from multiple search results in detail.
 
@@ -70,6 +70,76 @@ def summarize_command(query):
     print("Search Results:")
     for res in results:
         print(f"- {res["title"]}")
+
+    print("RAG Response:")
+    print(response.text)
+
+def citations_command(query, limit = 5):
+    movies = load_movies()
+
+    semantic_search = SemanticSearch()
+    semantic_search.load_or_create_embeddings(movies)
+    hybrid_search = HybridSearch(movies)
+
+    documents = hybrid_search.rrf_search(query, limit = limit)
+
+    prompt = f"""Answer the query below and give information based on the provided documents.
+
+    The answer should be tailored to users of Hoopla, a movie streaming service.
+    If not enough information is available to provide a good answer, say so, but give the best answer possible while citing the sources available.
+
+    Query: {query}
+
+    Documents:
+    {documents}
+
+    Instructions:
+    - Provide a comprehensive answer that addresses the query
+    - Cite sources in the format [1], [2], etc. when referencing information
+    - If sources disagree, mention the different viewpoints
+    - If the answer isn't in the provided documents, say "I don't have enough information"
+    - Be direct and informative
+
+    Answer:"""
+
+    response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
+
+    print("Search Results:")
+    for doc in documents:
+        print(f"- {doc["title"]}")
+
+    print("RAG Response:")
+    print(response.text)
+
+def question_command(question, limit):
+    movies = load_movies()
+
+    semantic_search = SemanticSearch()
+    semantic_search.load_or_create_embeddings(movies)
+    hybrid_search = HybridSearch(movies)
+
+    context = hybrid_search.rrf_search(question, limit = limit)
+
+    prompt = f"""Answer the user's question based on the provided movies that are available on Hoopla, a streaming service.
+
+    Question: {question}
+
+    Documents:
+    {context}
+
+    Instructions:
+    - Answer questions directly and concisely
+    - Be casual and conversational
+    - Don't be cringe or hype-y
+    - Talk like a normal person would in a chat conversation
+
+    Answer:"""
+
+    response = client.models.generate_content(model="gemma-4-31b-it", contents=prompt)
+
+    print("Search Results:")
+    for doc in context:
+        print(f"- {doc["title"]}")
 
     print("RAG Response:")
     print(response.text)
