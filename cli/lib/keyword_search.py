@@ -191,3 +191,11 @@ def preprocess_text(text: str) -> str:
     split_text = [stemmer.stem(word) for word in split_text]
 
     return split_text
+
+def test_preprocess_text():
+    docs = load_movies()
+    text = docs[0]["description"]
+    print(preprocess_text(text))
+
+if __name__ == "__main__":
+    test_preprocess_text()

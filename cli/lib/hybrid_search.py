@@ -29,7 +29,7 @@ class HybridSearch:
         return self.idx.bm25_search(query, limit)
 
     def weighted_search(self, query, alpha, limit=5):
-        keyword_search_results = self.idx.bm25_search(query, limit * 500) #returns a list of tuples, feels wrong
+        keyword_search_results = self.idx.bm25_search(query, limit * 500)
         normalized_keyword_search = normalize_search_results(keyword_search_results)
 
         semantic_search_results = self.semantic_search.search_chunks(query, limit * 500)
